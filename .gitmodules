@@ -1,12 +1,12 @@
-[submodule "other-lib"]
-	path = other-lib
-	url = git@github.com:zhangkunyi/other-lib.git
-[submodule "apm-ctrl"]
-	path = apm-ctrl
-	url = git@github.com:zhangkunyi/apm-ctrl.git
-[submodule "fast-lio-fl"]
-	path = fast-lio-fl
-	url = git@github.com:zhangkunyi/fast-lio-fl.git
-[submodule "ego-planner-bspline"]
-	path = ego-planner-bspline
+[submodule "src/ego-planner-bspline"]
+	path = src/ego-planner-bspline
 	url = git@github.com:zhangkunyi/ego-planner-bspline.git
+[submodule "src/fast-lio-fl"]
+	path = src/fast-lio-fl
+	url = git@github.com:zhangkunyi/fast-lio-fl.git
+[submodule "src/other-lib"]
+	path = src/other-lib
+	url = git@github.com:zhangkunyi/other-lib.git
+[submodule "src/apm-ctrl"]
+	path = src/apm-ctrl
+	url = git@github.com:zhangkunyi/apm-ctrl.git
