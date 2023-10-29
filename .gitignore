@@ -1,2 +1,11 @@
 build
 devel
+
+## vscode
+.vscode
+
+## catkin build
+.catkin_tools
+logs
+
+.catkin_workspace
