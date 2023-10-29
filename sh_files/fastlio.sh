@@ -17,8 +17,8 @@ rosrun mavros mavsys message_interval --id=11030 --rate=200;
 # https://github1s.com/mavlink/mavlink/blob/HEAD/message_definitions/v1.0/ardupilotmega.xml
 
 # localization
-#roslaunch livox_ros_driver2 msg_MID360.launch & sleep 5;
-#roslaunch fast_lio mapping_mid360.launch & sleep 5;
+roslaunch livox_ros_driver2 msg_MID360.launch & sleep 5;
+roslaunch fast_lio mapping_mid360.launch & sleep 5;
 
 # # ekf
 roslaunch ekf imu_and_lidar.launch & sleep 1;
