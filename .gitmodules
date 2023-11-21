@@ -16,3 +16,6 @@
 [submodule "src/task-planner"]
 	path = src/task-planner
 	url = git@github.com:Henry-lsy/task-planner.git
+[submodule "src/uav-simulator"]
+	path = src/uav-simulator
+	url = git@github.com:Henry-lsy/uav-simulator.git
