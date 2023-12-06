@@ -31,7 +31,5 @@
 *.out
 *.app
 
-build/
-*.pcd
-
 Log/
+PCD/
