@@ -1,6 +1,3 @@
-[submodule "src/fast-lio-fl"]
-	path = src/fast-lio-fl
-	url = git@github.com:zhangkunyi/fast-lio-fl.git
 [submodule "src/other-lib"]
 	path = src/other-lib
 	url = git@github.com:zhangkunyi/other-lib.git
@@ -19,3 +16,6 @@
 [submodule "src/ekf-fuser"]
 	path = src/ekf-fuser
 	url = git@github.com:zhangkunyi/ekf-fuser.git
+[submodule "src/faster-lio"]
+	path = src/faster-lio
+	url = https://github.com/lyf-FATAS/faster-lio.git
