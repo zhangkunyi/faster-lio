@@ -7,15 +7,15 @@
 [submodule "src/apm-ctrl"]
 	path = src/apm-ctrl
 	url = git@github.com:zhangkunyi/apm-ctrl.git
-[submodule "src/perching"]
-	path = src/perching
-	url = git@github.com:Henry-lsy/perching.git
 [submodule "src/ego-planner-minco"]
 	path = src/ego-planner-minco
-	url = git@github.com:Henry-lsy/ego-planner-minco.git
+	url = git@github.com:zhangkunyi/ego-planner-minco.git
 [submodule "src/task-planner"]
 	path = src/task-planner
-	url = git@github.com:Henry-lsy/task-planner.git
+	url = git@github.com:zhangkunyi/task-planner.git
 [submodule "src/uav-simulator"]
 	path = src/uav-simulator
-	url = git@github.com:Henry-lsy/uav-simulator.git
+	url = git@github.com:zhangkunyi/uav-simulator.git
+[submodule "src/ekf-fuser"]
+	path = src/ekf-fuser
+	url = git@github.com:zhangkunyi/ekf-fuser.git

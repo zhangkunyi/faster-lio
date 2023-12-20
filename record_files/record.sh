@@ -1,9 +1,11 @@
 source ./devel/setup.zsh & sleep 1;
 rosbag record --tcpnodelay \
   /position_cmd \
-  /ekf/ekf_odom_lidar \
+  /ekf_fuser/odom \
   /mavros/setpoint_raw/attitude \
-
+  /planning/state \
+  /planning/des \
+  /aruco_single/pose \
 # /camera/color/camera_info \
 # /camera/color/image_raw \
 # /camera/depth/image_rect_raw \
