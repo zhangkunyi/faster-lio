@@ -1,0 +1,9 @@
+<launch>
+    <arg name="folder_path" value="/home/nv/inspection_data" />
+    <arg name="capture_image_delay_time" value="1.0" />
+    <node pkg ="image_manager" name ="image_manager" type ="image_manager" output = "screen">
+        <param name="folder_path" value="$(arg folder_path)"/>
+        <param name="capture_image_delay_time" value="$(arg capture_image_delay_time)"/>
+    </node>
+</launch>
+
