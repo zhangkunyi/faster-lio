@@ -1,4 +1,4 @@
-source ./devel/setup.zsh & sleep 1;
+source ./devel/setup.zsh &sleep 1;
 
 roslaunch usb_cam usb_cam-test.launch & sleep 1;
 

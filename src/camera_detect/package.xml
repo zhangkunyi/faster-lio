@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package>
+  <name>camera_detect</name>
+  <version>0.0.0</version>
+
+  <description>
+    This is used for camera detect.
+  </description>
+
+  <maintainer email="dev@livoxtech.com">claydergc</maintainer>
+
+  <license>BSD</license>
+
+  <export>
+  </export>
+</package>

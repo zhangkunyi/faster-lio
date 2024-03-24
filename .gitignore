@@ -9,3 +9,5 @@ devel
 logs
 
 .catkin_workspace
+data_bag
+*.bag
