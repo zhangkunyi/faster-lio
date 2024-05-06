@@ -14,6 +14,8 @@
 #include "ivox3d/ivox3d.h"
 #include "options.h"
 #include "pointcloud_preprocess.h"
+#include <ros/console.h>
+#include <fstream>
 
 namespace faster_lio {
 
@@ -56,7 +58,7 @@ class LaserMapping {
 
     ////////////////////////////// debug save / show ////////////////////////////////////////////////////////////////
     void PublishPath(const ros::Publisher pub_path);
-    void PublishOdometry(const ros::Publisher &pub_odom_aft_mapped);
+    void PublishOdometry(const ros::Publisher &pub_odom, const ros::Publisher &pub_odom_gra);
     void PublishFrameWorld();
     void PublishFrameBody(const ros::Publisher &pub_laser_cloud_body);
     void PublishFrameEffectWorld(const ros::Publisher &pub_laser_cloud_effect_world);
@@ -112,20 +114,23 @@ class LaserMapping {
     ros::Timer localization_init_timer_;
     ros::Subscriber sub_pcl_;
     ros::Subscriber sub_imu_;
-    ros::Publisher pub_map_cloud_world_;
+    ros::Publisher pub_pre_build_map_;
     ros::Publisher pub_laser_cloud_world_;
     ros::Publisher pub_laser_cloud_body_;
     ros::Publisher pub_laser_cloud_effect_world_;
-    ros::Publisher pub_odom_aft_mapped_;
+    ros::Publisher pub_odom_;
+    ros::Publisher pub_odom_gra_;
     ros::Publisher pub_path_;
     std::string tf_imu_frame_;
     std::string tf_world_frame_;
+    std::string tf_gravity_frame_;
 
     std::mutex mtx_buffer_;
     std::deque<double> time_buffer_;
     std::deque<PointCloudType::Ptr> lidar_buffer_;
     std::deque<sensor_msgs::Imu::ConstPtr> imu_buffer_;
-    nav_msgs::Odometry odom_aft_mapped_;
+    nav_msgs::Odometry odom_;
+    nav_msgs::Odometry odom_gra_;
 
     /// options
     bool localization_mode_en_ = false;

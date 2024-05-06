@@ -1,8 +1,9 @@
 common:
   lid_topic: "/livox/lidar"
   imu_topic: "/livox/imu"
+  # imu_topic: "/mavros/imu/data_raw"
   # ONLY turn on when external time synchronization is really not possible
-  time_sync_en: false
+  time_sync_en: true
 
 preprocess:
   # 1: Livox Mid-360  2: Velodyne LiDAR  3: Ouster LiDAR
@@ -20,6 +21,16 @@ mapping:
   extrinsic_R: [ 1, 0, 0,
                  0, 1, 0,
                  0, 0, 1 ]
+
+init_state_cov:
+    position: [1.0, 1.0, 1.0]
+    rotation: [1.0, 1.0, 1.0]
+    velocity: [1.0, 1.0, 1.0]
+    extrinsic_R_L_I: [0.00001, 0.00001, 0.00001]
+    extrinsic_T_L_I: [0.00001, 0.00001, 0.00001]
+    bg: [0.0001, 0.0001, 0.0001]
+    ba: [0.0001, 0.0001, 0.0001]
+    gravity: [0.00001, 0.00001]
 
 publish:
   path_publish_en: true

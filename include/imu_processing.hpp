@@ -20,6 +20,18 @@ constexpr int MAX_INI_COUNT = 20;
 
 bool time_list(const PointType &x, const PointType &y) { return (x.curvature < y.curvature); };
 
+struct StateCovInit
+{
+    std::vector<double> position = std::vector<double>(3);
+    std::vector<double> rotation = std::vector<double>(3);
+    std::vector<double> extrinsic_R_L_I = std::vector<double>(3);
+    std::vector<double> extrinsic_T_L_I = std::vector<double>(3);
+    std::vector<double> velocity = std::vector<double>(3);
+    std::vector<double> bg = std::vector<double>(3);
+    std::vector<double> ba = std::vector<double>(3);
+    std::vector<double> gravity = std::vector<double>(2);
+};
+
 /// IMU Process and undistortion
 class ImuProcess {
    public:
@@ -34,6 +46,8 @@ class ImuProcess {
     void SetAccCov(const common::V3D &scaler);
     void SetGyrBiasCov(const common::V3D &b_g);
     void SetAccBiasCov(const common::V3D &b_a);
+    void SetInitStateCov(const StateCovInit &state_cov);
+    void GetAngVel(common::V3D &ang_vel);
     void Process(const common::MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state,
                  PointCloudType::Ptr pcl_un_);
 
@@ -66,6 +80,7 @@ class ImuProcess {
     int init_iter_num_ = 1;
     bool b_first_frame_ = true;
     bool imu_need_init_ = true;
+    StateCovInit init_state_cov_;
 };
 
 ImuProcess::ImuProcess() : b_first_frame_(true), imu_need_init_(true) {
@@ -110,6 +125,10 @@ void ImuProcess::SetGyrBiasCov(const common::V3D &b_g) { cov_bias_gyr_ = b_g; }
 
 void ImuProcess::SetAccBiasCov(const common::V3D &b_a) { cov_bias_acc_ = b_a; }
 
+void ImuProcess::SetInitStateCov(const StateCovInit &state_cov) { init_state_cov_ = state_cov; }
+
+void ImuProcess::GetAngVel(common::V3D &ang_vel) { ang_vel = angvel_last_; }
+
 void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state,
                          int &N) {
     /** 1. initializing the gravity_, gyro bias, acc and gyro covariance
@@ -122,16 +141,16 @@ void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_
         N = 1;
         b_first_frame_ = false;
         const auto &imu_acc = meas.imu_.front()->linear_acceleration;
-        const auto &gyr_acc = meas.imu_.front()->angular_velocity;
+        const auto &imu_gyr = meas.imu_.front()->angular_velocity;
         mean_acc_ << imu_acc.x, imu_acc.y, imu_acc.z;
-        mean_gyr_ << gyr_acc.x, gyr_acc.y, gyr_acc.z;
+        mean_gyr_ << imu_gyr.x, imu_gyr.y, imu_gyr.z;
     }
 
     for (const auto &imu : meas.imu_) {
         const auto &imu_acc = imu->linear_acceleration;
-        const auto &gyr_acc = imu->angular_velocity;
+        const auto &imu_gyr = imu->angular_velocity;
         cur_acc << imu_acc.x, imu_acc.y, imu_acc.z;
-        cur_gyr << gyr_acc.x, gyr_acc.y, gyr_acc.z;
+        cur_gyr << imu_gyr.x, imu_gyr.y, imu_gyr.z;
 
         mean_acc_ += (cur_acc - mean_acc_) / N;
         mean_gyr_ += (cur_gyr - mean_gyr_) / N;
@@ -145,19 +164,74 @@ void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_
     }
     state_ikfom init_state = kf_state.get_x();
     init_state.grav = S2(-mean_acc_ / mean_acc_.norm() * common::G_m_s2);
-
     init_state.bg = mean_gyr_;
     init_state.offset_T_L_I = Lidar_T_wrt_IMU_;
     init_state.offset_R_L_I = Lidar_R_wrt_IMU_;
+
+    // (roll, pitch, raw) are Euler angles expressed in the order ZYX
+    // roll = atan(ay/az)
+    // pitch = -atan(ax,sqrt(ay^2+az^2))
+    // due to z-axis up is positive, change the sign for mapping
+    double roll  = atan2(-init_state.grav.vec(1), 
+                         -init_state.grav.vec(2));
+
+    double pitch = -atan2(-init_state.grav.vec(0), 
+                          sqrt(init_state.grav.vec(1)*init_state.grav.vec(1)+
+                               init_state.grav.vec(2)*init_state.grav.vec(2)));
+    Eigen::Quaterniond q_grav = Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+                                Eigen::AngleAxisd(roll,  Eigen::Vector3d::UnitX());
+
+    common::V3D euler_angle_pre = 180/M_PI*init_state.rot.matrix().eulerAngles(2, 1, 0);
+    ROS_ERROR_STREAM("===========transform the initial frame to gavity aligned frame===========");
+    ROS_ERROR_STREAM("previous grav is: " << init_state.grav.vec(0) <<  " " << init_state.grav.vec(1) << " " << init_state.grav.vec(2));
+    ROS_ERROR_STREAM("previous rota is: " << euler_angle_pre[0] << " " << euler_angle_pre[1] << " " << euler_angle_pre[2]);
+    init_state.rot  = q_grav;
+    init_state.grav = q_grav.toRotationMatrix() * S2(-mean_acc_ / mean_acc_.norm() * common::G_m_s2);
+    common::V3D euler_angle_cur = 180/M_PI*init_state.rot.matrix().eulerAngles(2, 1, 0);
+    ROS_ERROR_STREAM("current grav is: " << init_state.grav.vec(0) <<  " " << init_state.grav.vec(1) << " " << init_state.grav.vec(2));
+    ROS_ERROR_STREAM("current rota is: " << euler_angle_cur[0] << " " << euler_angle_cur[1] << " " << euler_angle_cur[2]);
+    ROS_ERROR_STREAM("=========================================================================");
     kf_state.change_x(init_state);
+    ROS_WARN_STREAM("initial pos is: "  << init_state.pos);
+    ROS_WARN_STREAM("initial rot is: "  << init_state.rot);
+    ROS_WARN_STREAM("initial vel is: "  << init_state.vel);
+    ROS_WARN_STREAM("initial gra is: "  << init_state.grav);
+    ROS_WARN_STREAM("initial ba is: "   << init_state.ba);
+    ROS_WARN_STREAM("initial bg is: "   << init_state.bg);
 
     esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = kf_state.get_P();
     init_P.setIdentity();
-    init_P(6, 6) = init_P(7, 7) = init_P(8, 8) = 0.00001;
-    init_P(9, 9) = init_P(10, 10) = init_P(11, 11) = 0.00001;
-    init_P(15, 15) = init_P(16, 16) = init_P(17, 17) = 0.0001;
-    init_P(18, 18) = init_P(19, 19) = init_P(20, 20) = 0.001;
-    init_P(21, 21) = init_P(22, 22) = 0.00001;
+    init_P(0, 0) = init_state_cov_.position[0];
+    init_P(1, 1) = init_state_cov_.position[1];
+    init_P(2, 2) = init_state_cov_.position[2];
+
+    init_P(3, 3) = init_state_cov_.rotation[0];
+    init_P(4, 4) = init_state_cov_.rotation[1];
+    init_P(5, 5) = init_state_cov_.rotation[2]; 
+
+    init_P(6, 6) = init_state_cov_.extrinsic_R_L_I[0]; 
+    init_P(7, 7) = init_state_cov_.extrinsic_R_L_I[1];
+    init_P(8, 8) = init_state_cov_.extrinsic_R_L_I[2];
+
+    init_P(9, 9)   = init_state_cov_.extrinsic_T_L_I[0]; 
+    init_P(10, 10) = init_state_cov_.extrinsic_T_L_I[1];
+    init_P(11, 11) = init_state_cov_.extrinsic_T_L_I[2];
+
+    init_P(12, 12) = init_state_cov_.velocity[0]; 
+    init_P(13, 13) = init_state_cov_.velocity[1];
+    init_P(14, 14) = init_state_cov_.velocity[2];
+
+    init_P(15, 15) = init_state_cov_.bg[0]; 
+    init_P(16, 16) = init_state_cov_.bg[1];
+    init_P(17, 17) = init_state_cov_.bg[2];
+
+    init_P(18, 18) = init_state_cov_.ba[0]; 
+    init_P(19, 19) = init_state_cov_.ba[1];
+    init_P(20, 20) = init_state_cov_.ba[2];
+
+    init_P(21,21) = init_state_cov_.gravity[0];
+    init_P(22,22) = init_state_cov_.gravity[1];
+
     kf_state.change_P(init_P);
     last_imu_ = meas.imu_.back();
 }
@@ -198,11 +272,11 @@ void ImuProcess::UndistortPcl(const common::MeasureGroup &meas, esekfom::esekf<s
         }
 
         angvel_avr << 0.5 * (head->angular_velocity.x + tail->angular_velocity.x),
-            0.5 * (head->angular_velocity.y + tail->angular_velocity.y),
-            0.5 * (head->angular_velocity.z + tail->angular_velocity.z);
+                      0.5 * (head->angular_velocity.y + tail->angular_velocity.y),
+                      0.5 * (head->angular_velocity.z + tail->angular_velocity.z);
         acc_avr << 0.5 * (head->linear_acceleration.x + tail->linear_acceleration.x),
-            0.5 * (head->linear_acceleration.y + tail->linear_acceleration.y),
-            0.5 * (head->linear_acceleration.z + tail->linear_acceleration.z);
+                   0.5 * (head->linear_acceleration.y + tail->linear_acceleration.y),
+                   0.5 * (head->linear_acceleration.z + tail->linear_acceleration.z);
 
         acc_avr = acc_avr * common::G_m_s2 / mean_acc_.norm();  // - state_inout.ba;
 

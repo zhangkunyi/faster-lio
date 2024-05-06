@@ -41,7 +41,11 @@ bool LaserMapping::InitROS(ros::NodeHandle &nh) {
         ros::Duration(2.0).sleep();
         LOG(INFO) << "Init prior map succeed!";
 
-        pub_map_cloud_world_.publish(mapCloudmsg_);
+        pub_pre_build_map_.publish(mapCloudmsg_);
+
+        std::ofstream fout;
+        fout.open(std::string(std::string(ROOT_DIR)+"Log/") + "record.txt");
+        fout.close();
     }
     return true;
 }
@@ -87,6 +91,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     nh.param<bool>("/publish/scan_effect_pub_en", scan_effect_pub_en_, false);
     nh.param<std::string>("/publish/tf_imu_frame", tf_imu_frame_, "body");
     nh.param<std::string>("/publish/tf_world_frame", tf_world_frame_, "world");
+    nh.param<std::string>("/publish/tf_gravity_frame", tf_gravity_frame_, "gravity");
 
     nh.param<int>("/max_iteration", options::NUM_MAX_ITERATIONS, 4);
     nh.param<float>("/esti_plane_threshold", options::ESTI_PLANE_THRESHOLD, 0.1);
@@ -112,6 +117,17 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
 
     nh.param<float>("/ivox_grid_resolution", ivox_options_.resolution_, 0.2);
     nh.param<int>("/ivox_nearby_type", ivox_nearby_type, 18);
+
+    /**********init status cov***********/
+    StateCovInit init_state_cov;
+    nh.param<std::vector<double>>("/init_state_cov/position", init_state_cov.position, std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/rotation", init_state_cov.rotation, std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/extrinsic_R_L_I", init_state_cov.extrinsic_R_L_I, std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/extrinsic_T_L_I", init_state_cov.extrinsic_T_L_I, std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/velocity", init_state_cov.velocity, std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/bg",       init_state_cov.bg,       std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/ba",       init_state_cov.ba,       std::vector<double>());
+    nh.param<std::vector<double>>("/init_state_cov/gravity",  init_state_cov.gravity,  std::vector<double>());
 
     LOG(INFO) << "lidar_type " << lidar_type;
     if (lidar_type == 1) {
@@ -154,6 +170,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     p_imu_->SetAccCov(common::V3D(acc_cov, acc_cov, acc_cov));
     p_imu_->SetGyrBiasCov(common::V3D(b_gyr_cov, b_gyr_cov, b_gyr_cov));
     p_imu_->SetAccBiasCov(common::V3D(b_acc_cov, b_acc_cov, b_acc_cov));
+    p_imu_->SetInitStateCov(init_state_cov);
     return true;
 }
 
@@ -174,6 +191,7 @@ bool LaserMapping::LoadParamsFromYAML(const std::string &yaml_file) {
         scan_effect_pub_en_ = yaml["publish"]["scan_effect_pub_en"].as<bool>();
         tf_imu_frame_ = yaml["publish"]["tf_imu_frame"].as<std::string>("body");
         tf_world_frame_ = yaml["publish"]["tf_world_frame"].as<std::string>("world");
+        tf_gravity_frame_ = yaml["publish"]["tf_gravity_frame"].as<std::string>("gravity");
 
         options::NUM_MAX_ITERATIONS = yaml["max_iteration"].as<int>();
         options::ESTI_PLANE_THRESHOLD = yaml["esti_plane_threshold"].as<float>();
@@ -271,11 +289,12 @@ void LaserMapping::SubAndPubToROS(ros::NodeHandle &nh) {
     pub_laser_cloud_world_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered", 100);
     pub_laser_cloud_body_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered_body", 100);
     pub_laser_cloud_effect_world_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_registered_effect_world", 100);
-    pub_odom_aft_mapped_ = nh.advertise<nav_msgs::Odometry>("odometry", 100);
-    pub_path_ = nh.advertise<nav_msgs::Path>("path", 100);
+    pub_odom_     = nh.advertise<nav_msgs::Odometry>("odometry", 100);
+    pub_odom_gra_ = nh.advertise<nav_msgs::Odometry>("odometry_gra", 100);
+    pub_path_     = nh.advertise<nav_msgs::Path>("path", 100);
 
     if (localization_mode_en_) {
-        pub_map_cloud_world_ = nh.advertise<sensor_msgs::PointCloud2>("map", 100);
+        pub_pre_build_map_ = nh.advertise<sensor_msgs::PointCloud2>("world", 100);
 
         localization_init_timer_ = nh.createTimer(
             ros::Duration(2.0 + 5.0),
@@ -356,30 +375,22 @@ void LaserMapping::Run() {
 
     // publish or save map pcd
     if (run_in_offline_) {
-        if (pcd_save_en_) {
+        if (pcd_save_en_)       
             PublishFrameWorld();
-        }
-        if (path_pub_en_) {
+        if (path_pub_en_)       
             PublishPath(pub_path_);
-        }
     } else {
-        if (pub_odom_aft_mapped_) {
-            PublishOdometry(pub_odom_aft_mapped_);
-        }
-        if (path_pub_en_) {
+        if (pub_odom_)
+            PublishOdometry(pub_odom_, pub_odom_gra_);
+        if (path_pub_en_) 
             PublishPath(pub_path_);
-        }
-        if (scan_pub_en_ || pcd_save_en_) {
+        if (scan_pub_en_ || pcd_save_en_)
             PublishFrameWorld();
-        }
-        if (scan_pub_en_ && scan_body_pub_en_) {
+        if (scan_pub_en_ && scan_body_pub_en_)
             PublishFrameBody(pub_laser_cloud_body_);
-        }
-        if (scan_pub_en_ && scan_effect_pub_en_) {
+        if (scan_pub_en_ && scan_effect_pub_en_) 
             PublishFrameEffectWorld(pub_laser_cloud_effect_world_);
-        }
     }
-
     // Debug variables
     frame_num_++;
 }
@@ -507,8 +518,10 @@ bool LaserMapping::SyncPackages() {
 }
 
 void LaserMapping::PrintState(const state_ikfom &s) {
-    LOG(INFO) << "state r: " << s.rot.coeffs().transpose() << ", t: " << s.pos.transpose()
-              << ", off r: " << s.offset_R_L_I.coeffs().transpose() << ", t: " << s.offset_T_L_I.transpose();
+    LOG(INFO) << "state r: " << s.rot.coeffs().transpose() 
+              << ", t: "     << s.pos.transpose()
+              << ", off r: " << s.offset_R_L_I.coeffs().transpose() 
+              << ", t: "     << s.offset_T_L_I.transpose();
 }
 
 void LaserMapping::MapIncremental() {
@@ -533,10 +546,10 @@ void LaserMapping::MapIncremental() {
         if (!nearest_points_[i].empty() && flg_EKF_inited_) {
             const PointVector &points_near = nearest_points_[i];
 
-            Eigen::Vector3f center =
+            common::V3F center =
                 ((point_world.getVector3fMap() / filter_size_map_min_).array().floor() + 0.5) * filter_size_map_min_;
 
-            Eigen::Vector3f dis_2_center = points_near[0].getVector3fMap() - center;
+            common::V3F dis_2_center = points_near[0].getVector3fMap() - center;
 
             if (fabs(dis_2_center.x()) > 0.5 * filter_size_map_min_ &&
                 fabs(dis_2_center.y()) > 0.5 * filter_size_map_min_ &&
@@ -703,34 +716,140 @@ void LaserMapping::PublishPath(const ros::Publisher pub_path) {
     }
 }
 
-void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom_aft_mapped) {
-    odom_aft_mapped_.header.frame_id = "world";
-    odom_aft_mapped_.child_frame_id = "body";
-    odom_aft_mapped_.header.stamp = ros::Time().fromSec(lidar_end_time_);  // ros::Time().fromSec(lidar_end_time_);
-    SetPosestamp(odom_aft_mapped_.pose);
-    pub_odom_aft_mapped.publish(odom_aft_mapped_);
+void LaserMapping::PublishOdometry(const ros::Publisher &pub_odom,
+                                   const ros::Publisher &pub_odom_gra) {
+    // pub odom in world frame
+    odom_.header.frame_id = "world";
+    odom_.child_frame_id = "body";
+    odom_.header.stamp = ros::Time().fromSec(lidar_end_time_);  // ros::Time().fromSec(lidar_end_time_);
+    SetPosestamp(odom_.pose);
     auto P = kf_.get_P();
     for (int i = 0; i < 6; i++) {
         int k = i < 3 ? i + 3 : i - 3;
-        odom_aft_mapped_.pose.covariance[i * 6 + 0] = P(k, 3);
-        odom_aft_mapped_.pose.covariance[i * 6 + 1] = P(k, 4);
-        odom_aft_mapped_.pose.covariance[i * 6 + 2] = P(k, 5);
-        odom_aft_mapped_.pose.covariance[i * 6 + 3] = P(k, 0);
-        odom_aft_mapped_.pose.covariance[i * 6 + 4] = P(k, 1);
-        odom_aft_mapped_.pose.covariance[i * 6 + 5] = P(k, 2);
+        odom_.pose.covariance[i * 6 + 0] = P(k, 3);
+        odom_.pose.covariance[i * 6 + 1] = P(k, 4);
+        odom_.pose.covariance[i * 6 + 2] = P(k, 5);
+        odom_.pose.covariance[i * 6 + 3] = P(k, 0);
+        odom_.pose.covariance[i * 6 + 4] = P(k, 1);
+        odom_.pose.covariance[i * 6 + 5] = P(k, 2);
     }
+    pub_odom.publish(odom_);
 
     static tf::TransformBroadcaster br;
     tf::Transform transform;
     tf::Quaternion q;
-    transform.setOrigin(tf::Vector3(odom_aft_mapped_.pose.pose.position.x, odom_aft_mapped_.pose.pose.position.y,
-                                    odom_aft_mapped_.pose.pose.position.z));
-    q.setW(odom_aft_mapped_.pose.pose.orientation.w);
-    q.setX(odom_aft_mapped_.pose.pose.orientation.x);
-    q.setY(odom_aft_mapped_.pose.pose.orientation.y);
-    q.setZ(odom_aft_mapped_.pose.pose.orientation.z);
+    transform.setOrigin(tf::Vector3(odom_.pose.pose.position.x, 
+                                    odom_.pose.pose.position.y,
+                                    odom_.pose.pose.position.z));
+    q.setW(odom_.pose.pose.orientation.w);
+    q.setX(odom_.pose.pose.orientation.x);
+    q.setY(odom_.pose.pose.orientation.y);
+    q.setZ(odom_.pose.pose.orientation.z);
     transform.setRotation(q);
-    br.sendTransform(tf::StampedTransform(transform, odom_aft_mapped_.header.stamp, tf_world_frame_, tf_imu_frame_));
+    br.sendTransform(tf::StampedTransform(transform, odom_.header.stamp, tf_world_frame_, tf_imu_frame_));
+
+    // pub odom in gravity aligned frame
+    auto state = kf_.get_x();
+    double roll  = atan2(-state.grav.vec(1), 
+                         -state.grav.vec(2));
+    double pitch = -atan2(-state.grav.vec(0), 
+                           sqrt(state.grav.vec(1)*state.grav.vec(1)+
+                                state.grav.vec(2)*state.grav.vec(2)));
+    Eigen::Quaterniond q_gra = Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+                               Eigen::AngleAxisd(roll,  Eigen::Vector3d::UnitX());
+    // ROS_WARN_STREAM("change the initial frame to gavity aligned frame");
+    
+    // printf("gra is: %f, %f, %f, norm is: %f, ", 
+    //     state.grav.vec(0), 
+    //     state.grav.vec(1), 
+    //     state.grav.vec(2),
+    //     sqrt(state.grav.vec(0)*state.grav.vec(0)+
+    //          state.grav.vec(1)*state.grav.vec(1)+
+    //          state.grav.vec(2)*state.grav.vec(2)));
+    // printf("roll is: %f, pitch is: %f, ", roll*180/M_PI, pitch*180/M_PI);
+    // printf("ba is: %f, %f, %f.\n", state.ba[0], state.ba[1], state.ba[2]);
+
+    std::ofstream fout;
+    fout.open(std::string(std::string(ROOT_DIR)+"Log/") + "record.txt", std::ios::app);
+    fout << state.grav.vec(0) << ", " 
+         << state.grav.vec(1) << ", " 
+         << state.grav.vec(2) << ", " 
+         << sqrt(state.grav.vec(0)*state.grav.vec(0)+
+                 state.grav.vec(1)*state.grav.vec(1)+
+                 state.grav.vec(2)*state.grav.vec(2)) << ", "
+         << roll*180/M_PI  << ", "
+         << pitch*180/M_PI << ", "
+         << state.ba[0] << ", "
+         << state.ba[1] << ", "
+         << state.ba[2] << ", "
+         << state.bg[0] << ", "
+         << state.bg[1] << ", "
+         << state.bg[2] << std::endl;
+    fout.close();
+
+    odom_gra_.header.frame_id = "gravity";
+    odom_gra_.child_frame_id = "body";
+    odom_gra_.header.stamp = ros::Time().fromSec(lidar_end_time_);  // ros::Time().fromSec(lidar_end_time_);
+    common::V3D pos_gra = q_gra.toRotationMatrix() * state_point_.pos;
+    common::V3D vel_gra = q_gra.toRotationMatrix() * state_point_.vel;
+    Eigen::Quaterniond rot_gra = q_gra * state_point_.rot;
+    odom_gra_.pose.pose.position.x = pos_gra[0];
+    odom_gra_.pose.pose.position.y = pos_gra[1];
+    odom_gra_.pose.pose.position.z = pos_gra[2];
+    odom_gra_.pose.pose.orientation.x = rot_gra.x();
+    odom_gra_.pose.pose.orientation.y = rot_gra.y();
+    odom_gra_.pose.pose.orientation.z = rot_gra.z();
+    odom_gra_.pose.pose.orientation.w = rot_gra.w();    
+    for (int i = 0; i < 6; i++) {
+        int k = i < 3 ? i + 3 : i - 3;
+        odom_gra_.pose.covariance[i * 6 + 0] = P(k, 3);
+        odom_gra_.pose.covariance[i * 6 + 1] = P(k, 4);
+        odom_gra_.pose.covariance[i * 6 + 2] = P(k, 5);
+        odom_gra_.pose.covariance[i * 6 + 3] = P(k, 0);
+        odom_gra_.pose.covariance[i * 6 + 4] = P(k, 1);
+        odom_gra_.pose.covariance[i * 6 + 5] = P(k, 2);
+    }
+
+    odom_gra_.twist.twist.linear.x = vel_gra[0];
+    odom_gra_.twist.twist.linear.y = vel_gra[1];
+    odom_gra_.twist.twist.linear.z = vel_gra[2];
+
+    common::V3D angvel_last;
+    p_imu_->GetAngVel(angvel_last);
+    odom_gra_.twist.twist.angular.x = angvel_last[0];
+    odom_gra_.twist.twist.angular.y = angvel_last[1];
+    odom_gra_.twist.twist.angular.z = angvel_last[2];
+    // printf("angvel_last is: %f, %f, %f.\n",  angvel_last[0],  angvel_last[1],  angvel_last[2]);
+
+    // common::V3D angvel_last_;
+    // angvel_last_[0] = measures_.imu_.back()->angular_velocity.x - state_point_.bg[0];
+    // angvel_last_[1] = measures_.imu_.back()->angular_velocity.y - state_point_.bg[1];
+    // angvel_last_[2] = measures_.imu_.back()->angular_velocity.z - state_point_.bg[2];
+    // odom_gra_.twist.twist.angular.x = angvel_last_[0];
+    // odom_gra_.twist.twist.angular.y = angvel_last_[1];
+    // odom_gra_.twist.twist.angular.z = angvel_last_[2];
+    // printf("angvel_last_ is: %f, %f, %f.\n", angvel_last_[0], angvel_last_[1], angvel_last_[2]);
+
+    for (int i = 0; i < 6; i ++){
+        odom_gra_.twist.covariance[i*6 + 0] = P(12 + i, 12);
+        odom_gra_.twist.covariance[i*6 + 1] = P(13 + i, 13);
+        odom_gra_.twist.covariance[i*6 + 2] = P(14 + i, 14);
+        odom_gra_.twist.covariance[i*6 + 3] = P(15 + i, 15);
+        odom_gra_.twist.covariance[i*6 + 4] = P(16 + i, 16);
+        odom_gra_.twist.covariance[i*6 + 5] = P(17 + i, 17);   
+    }
+    pub_odom_gra_.publish(odom_gra_);
+
+    static tf::TransformBroadcaster br_gra;
+    tf::Transform transform_gra;
+    tf::Quaternion q_gra_tf;
+    transform_gra.setOrigin(tf::Vector3(0, 0, 0));
+    q_gra_tf.setW(q_gra.w());
+    q_gra_tf.setX(q_gra.x());
+    q_gra_tf.setY(q_gra.y());
+    q_gra_tf.setZ(q_gra.z());
+    transform_gra.setRotation(q_gra_tf);
+    br_gra.sendTransform(tf::StampedTransform(transform_gra, odom_.header.stamp, tf_gravity_frame_, tf_world_frame_));
 }
 
 void LaserMapping::PublishFrameWorld() {

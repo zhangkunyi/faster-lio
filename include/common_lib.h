@@ -24,7 +24,8 @@ using PointVector = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
 
 namespace faster_lio::common {
 
-constexpr double G_m_s2 = 9.81;  // Gravity const in GuangDong/China
+// constexpr double G_m_s2 = 9.81;  // Gravity const in GuangDong/China
+constexpr double G_m_s2 = 9.7936;  // Gravity const in HangZhou/China
 
 template <typename S>
 inline Eigen::Matrix<S, 3, 1> VecFromArray(const std::vector<double> &v) {

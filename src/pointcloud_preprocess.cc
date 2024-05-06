@@ -54,9 +54,8 @@ void PointCloudPreprocess::Mid360Handler(const livox_ros_driver2::CustomMsg::Con
                 cloud_full_[i].y = msg->points[i].y;
                 cloud_full_[i].z = msg->points[i].z;
                 cloud_full_[i].intensity = msg->points[i].reflectivity;
-                cloud_full_[i].curvature =
-                    msg->points[i].offset_time /
-                    float(1000000);  // use curvature as time of each laser points, curvature unit: ms
+                cloud_full_[i].curvature = msg->points[i].offset_time / float(1000000);  
+                // use curvature as time of each laser points, curvature unit: ms
 
                 if (((abs(cloud_full_[i].x - cloud_full_[i - 1].x) > 1e-7) ||
                      (abs(cloud_full_[i].y - cloud_full_[i - 1].y) > 1e-7) ||
@@ -93,7 +92,7 @@ void PointCloudPreprocess::Oust64Handler(const sensor_msgs::PointCloud2::ConstPt
 
         if (range < (blind_ * blind_)) continue;
 
-        Eigen::Vector3d pt_vec;
+        common::V3D pt_vec;
         PointType added_pt;
         added_pt.x = pl_orig.points[i].x;
         added_pt.y = pl_orig.points[i].y;
