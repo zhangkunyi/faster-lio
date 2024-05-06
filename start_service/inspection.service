@@ -1,0 +1,17 @@
+[Unit]
+Description=start inspection
+# 必须执行网络
+# 在网络启动后启动程序
+After=network.target
+StartLimitIntervalSec=0
+​
+[Service]
+Type=simple
+User=nv
+# 需要自启动的代码
+ExecStart=/usr/bin/zsh  /home/nv/quzhou-project/start_service/start_service.sh
+RestartSec=1
+Restart=always
+​
+[Install]
+WantedBy=multi-user.target

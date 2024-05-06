@@ -19,7 +19,7 @@ rosrun mavros mavsys message_interval --id=132 --rate=100;
 
 # localization
 roslaunch livox_ros_driver2 msg_MID360.launch & sleep 5;
-roslaunch faster_lio mapping_mid360.launch rviz:=true localization_mode:=true & sleep 5;
+roslaunch faster_lio mapping_mid360.launch rviz:=true localization_mode:=false & sleep 5;
 
 # # ekf
 roslaunch ekf_fuser ekf_fuser.launch & sleep 1;

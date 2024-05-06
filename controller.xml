@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root>
+ <tabbed_widget name="Main Window" parent="main_window">
+  <Tab tab_name="tab1" containers="1">
+   <Container>
+    <DockSplitter orientation="-" sizes="0.332919;0.334161;0.332919" count="3">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="0.303815" bottom="-1.102405" left="1712844991.785511" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/ekf_fuser/odom/pose/pose/position/x" color="#1f77b4"/>
+       <curve name="/debugAutopilotCtrl/des_p_x" color="#f14cc1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="1.629244" bottom="-1.459015" left="1712844991.785511" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/ekf_fuser/odom/pose/pose/position/y" color="#d62728"/>
+       <curve name="/debugAutopilotCtrl/des_p_y" color="#9467bd"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="0.998269" bottom="-0.331665" left="1712844991.785511" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/ekf_fuser/odom/pose/pose/position/z" color="#1ac938"/>
+       <curve name="/debugAutopilotCtrl/des_p_z" color="#17becf"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab tab_name="tab3" containers="1">
+   <Container>
+    <DockSplitter orientation="-" sizes="0.332919;0.334161;0.332919" count="3">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="2.629141" bottom="-1.883029" left="1712846296.062480" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/debugAutopilotCtrl/des_pitch" color="#bcbd22"/>
+       <curve name="/ekf_fuser/odom/pose/pose/orientation/pitch_deg" color="#1ac938"/>
+       <curve name="/mavros/imu/data_raw/orientation/pitch_deg" color="#1f77b4"/>
+       <curve name="/mavros/imu/data/orientation/pitch_deg" color="#d62728"/>
+       <curve name="/laserMapping/odometry/pose/pose/orientation/pitch_deg" color="#ff7f0e"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="LinesAndDots">
+       <range top="2.063172" bottom="-1.685102" left="1712846296.062480" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/debugAutopilotCtrl/des_roll" color="#1f77b4"/>
+       <curve name="/ekf_fuser/odom/pose/pose/orientation/roll_deg" color="#ff7f0e"/>
+       <curve name="/mavros/imu/data/orientation/roll_deg" color="#bcbd22"/>
+       <curve name="/laserMapping/odometry/pose/pose/orientation/roll_deg" color="#f14cc1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="55.480537" bottom="-40.281530" left="1712846296.169606" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/debugAutopilotCtrl/des_yaw" color="#d62728"/>
+       <curve name="/ekf_fuser/odom/pose/pose/orientation/yaw_deg" color="#f14cc1"/>
+       <curve name="/mavros/imu/data/orientation/yaw_deg" color="#1ac938"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab tab_name="tab4" containers="1">
+   <Container>
+    <DockSplitter orientation="-" sizes="0.332919;0.334161;0.332919" count="3">
+     <DockSplitter orientation="|" sizes="0.333032;0.333937;0.333032" count="3">
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="0.596813" bottom="-1.109552" left="1712844991.785511" right="1712846496.168265"/>
+        <limitY/>
+        <curve name="/debugAutopilotCtrl/eso_x" color="#9467bd"/>
+        <curve name="/ekf_fuser/odom/pose/pose/position/x" color="#1f77b4"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="1.709529" bottom="-1.833765" left="1712844991.785511" right="1712846496.168265"/>
+        <limitY/>
+        <curve name="/debugAutopilotCtrl/eso_y" color="#17becf"/>
+        <curve name="/ekf_fuser/odom/pose/pose/position/y" color="#d62728"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="0.896931" bottom="-0.321301" left="1712844991.785511" right="1712846496.168265"/>
+        <limitY/>
+        <curve name="/debugAutopilotCtrl/eso_z" color="#bcbd22"/>
+        <curve name="/ekf_fuser/odom/pose/pose/position/z" color="#1ac938"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+     <DockSplitter orientation="|" sizes="0.333032;0.333937;0.333032" count="3">
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="2.918960" bottom="-2.199657" left="1712844991.785511" right="1712846496.168265"/>
+        <limitY/>
+        <curve name="/ekf_fuser/odom/twist/twist/linear/x" color="#ff7f0e"/>
+        <curve name="/debugAutopilotCtrl/eso_dx" color="#17becf"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="1.096283" bottom="-0.852624" left="1712844991.785511" right="1712846496.168265"/>
+        <limitY/>
+        <curve name="/ekf_fuser/odom/twist/twist/linear/y" color="#f14cc1"/>
+        <curve name="/debugAutopilotCtrl/eso_dy" color="#bcbd22"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="1.179375" bottom="-0.735268" left="1712844991.785511" right="1712846496.168265"/>
+        <limitY/>
+        <curve name="/ekf_fuser/odom/twist/twist/linear/z" color="#9467bd"/>
+        <curve name="/debugAutopilotCtrl/eso_dz" color="#1f77b4"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+     <DockSplitter orientation="|" sizes="0.333032;0.333937;0.333032" count="3">
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="9.442271" bottom="-7.180842" left="1712844991.785511" right="1712845022.022622"/>
+        <limitY/>
+        <curve name="/debugAutopilotCtrl/eso_fx" color="#d62728"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="2.707185" bottom="-3.345691" left="1712844991.785511" right="1712845022.022622"/>
+        <limitY/>
+        <curve name="/debugAutopilotCtrl/eso_fy" color="#1ac938"/>
+       </plot>
+      </DockArea>
+      <DockArea name="...">
+       <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+        <range top="4.480863" bottom="-3.364540" left="1712844991.785511" right="1712845022.022622"/>
+        <limitY/>
+        <curve name="/debugAutopilotCtrl/eso_fz" color="#ff7f0e"/>
+       </plot>
+      </DockArea>
+     </DockSplitter>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab tab_name="tab5" containers="1">
+   <Container>
+    <DockSplitter orientation="-" sizes="0.332919;0.334161;0.332919" count="3">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="1.094332" bottom="-0.899396" left="1712844991.785511" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/debugAutopilotCtrl/des_v_x" color="#f14cc1"/>
+       <curve name="/ekf_fuser/odom/twist/twist/linear/x" color="#ff7f0e"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="4.171213" bottom="-3.019715" left="1712844991.785511" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/debugAutopilotCtrl/des_v_y" color="#9467bd"/>
+       <curve name="/ekf_fuser/odom/twist/twist/linear/y" color="#f14cc1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
+       <range top="1.330581" bottom="-1.598283" left="1712844991.785511" right="1712846496.168265"/>
+       <limitY/>
+       <curve name="/debugAutopilotCtrl/des_v_z" color="#17becf"/>
+       <curve name="/ekf_fuser/odom/twist/twist/linear/z" color="#9467bd"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <currentTabIndex index="0"/>
+ </tabbed_widget>
+ <use_relative_time_offset enabled="0"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <!-- - - - - - - - - - - - - - - -->
+ <!-- - - - - - - - - - - - - - - -->
+ <previouslyLoaded_Datafiles>
+  <fileInfo filename="2024-04-11-22-16-31.bag" prefix="">
+   <selected_datasources value="/Autopilot_heartbeat;/autopilot_ctrl/takeoff_land;/battery_status;/debugAutopilotCtrl;/diagnostics;/ekf_fuser/kf;/ekf_fuser/odom;/imu_recv;/inspection_status;/laserMapping/cloud_registered;/laserMapping/cloud_registered_body;/laserMapping/cloud_registered_effect_world;/laserMapping/odometry;/laserMapping/path;/livox/imu;/livox/lidar;/mavlink/from;/mavlink/gcs_ip;/mavros/altitude;/mavros/battery;/mavros/estimator_status;/mavros/extended_state;/mavros/geofence/waypoints;/mavros/imu/data;/mavros/imu/data_raw;/mavros/local_position/odom;/mavros/local_position/pose;/mavros/local_position/velocity_body;/mavros/local_position/velocity_local;/mavros/mission/waypoints;/mavros/odometry/in;/mavros/rallypoint/waypoints;/mavros/rc/in;/mavros/rc/out;/mavros/setpoint_raw/attitude;/mavros/setpoint_raw/target_attitude;/mavros/state;/mavros/sys_status;/mavros/time_reference;/mavros/timesync_status;/mavros/vfr_hud;/planning/des;/planning/state;/rosout;/rosout_agg;/tf;/tf_static"/>
+   <plugin ID="DataLoad ROS bags">
+    <use_header_stamp value="false"/>
+    <discard_large_arrays value="true"/>
+    <max_array_size value="100"/>
+    <boolean_strings_to_number value="true"/>
+    <remove_suffix_from_strings value="true"/>
+   </plugin>
+  </fileInfo>
+ </previouslyLoaded_Datafiles>
+ <previouslyLoaded_Streamer name="ROS Topic Subscriber"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <customMathEquations/>
+ <snippets/>
+ <!-- - - - - - - - - - - - - - - -->
+</root>
+

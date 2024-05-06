@@ -1,9 +1,6 @@
 [submodule "src/other-lib"]
 	path = src/other-lib
 	url = git@github.com:zhangkunyi/other-lib.git
-[submodule "src/apm-ctrl"]
-	path = src/apm-ctrl
-	url = git@github.com:zhangkunyi/apm-ctrl.git
 [submodule "src/ego-planner-minco"]
 	path = src/ego-planner-minco
 	url = git@github.com:zhangkunyi/ego-planner-minco.git
@@ -19,3 +16,6 @@
 [submodule "src/faster-lio"]
 	path = src/faster-lio
 	url = https://github.com/lyf-FATAS/faster-lio.git
+[submodule "src/autopilot-ctrl"]
+	path = src/autopilot-ctrl
+	url = git@github.com:zhangkunyi/autopilot-ctrl.git

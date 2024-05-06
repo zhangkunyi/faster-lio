@@ -4,7 +4,7 @@ source ./devel/setup.zsh & sleep 1;
 # sudo chmod 777 /dev/ttyACM0 & sleep 1;
 # roslaunch mavros apm.launch fcu_url:=/dev/ttyACM0:921600 & sleep 1;
 sudo chmod 777 /dev/ttyTHS0 & sleep 1;
-roslaunch mavros apm.launch fcu_url:=/dev/ttyTHS0:921600 & sleep 1;
+roslaunch mavros px4.launch fcu_url:=/dev/ttyTHS0:921600 & sleep 1;
 rosrun mavros mavsys message_interval --id=245   --rate=5;
 rosrun mavros mavsys message_interval --id=147   --rate=5;
 rosrun mavros mavsys message_interval --id=27    --rate=200;
