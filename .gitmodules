@@ -13,9 +13,9 @@
 [submodule "src/ekf-fuser"]
 	path = src/ekf-fuser
 	url = git@github.com:zhangkunyi/ekf-fuser.git
-[submodule "src/faster-lio"]
-	path = src/faster-lio
-	url = https://github.com/lyf-FATAS/faster-lio.git
 [submodule "src/autopilot-ctrl"]
 	path = src/autopilot-ctrl
 	url = git@github.com:zhangkunyi/autopilot-ctrl.git
+[submodule "src/faster-lio"]
+	path = src/faster-lio
+	url = git@github.com:zhangkunyi/faster-lio.git
