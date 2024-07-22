@@ -118,6 +118,12 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     nh.param<float>("/ivox_grid_resolution", ivox_options_.resolution_, 0.2);
     nh.param<int>("/ivox_nearby_type", ivox_nearby_type, 18);
 
+    /**********init position and yaw***********/
+    std::vector<double> init_pos_;                    // 
+    double init_yaw_ = 0.0;
+    nh.param<std::vector<double>>("/init_state/position",  init_pos_,  std::vector<double>());
+    nh.param<double>("/init_state/yaw",  init_yaw_,  0.0);
+
     /**********init status cov***********/
     StateCovInit init_state_cov;
     nh.param<std::vector<double>>("/init_state_cov/position", init_state_cov.position, std::vector<double>());
@@ -170,7 +176,11 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     p_imu_->SetAccCov(common::V3D(acc_cov, acc_cov, acc_cov));
     p_imu_->SetGyrBiasCov(common::V3D(b_gyr_cov, b_gyr_cov, b_gyr_cov));
     p_imu_->SetAccBiasCov(common::V3D(b_acc_cov, b_acc_cov, b_acc_cov));
+
+    p_imu_->SetInitPos(common::V3D(init_pos_[0], init_pos_[1], init_pos_[2]));
+    p_imu_->SetInitYaw(init_yaw_);
     p_imu_->SetInitStateCov(init_state_cov);
+
     return true;
 }
 

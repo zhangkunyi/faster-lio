@@ -46,10 +46,13 @@ class ImuProcess {
     void SetAccCov(const common::V3D &scaler);
     void SetGyrBiasCov(const common::V3D &b_g);
     void SetAccBiasCov(const common::V3D &b_a);
-    void SetInitStateCov(const StateCovInit &state_cov);
     void GetAngVel(common::V3D &ang_vel);
     void Process(const common::MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state,
                  PointCloudType::Ptr pcl_un_);
+
+    void SetInitPos(const common::V3D &pos);
+    void SetInitYaw(const double &yaw);
+    void SetInitStateCov(const StateCovInit &state_cov);
 
     // std::ofstream fout_imu_;
     Eigen::Matrix<double, 12, 12> Q_;
@@ -80,6 +83,9 @@ class ImuProcess {
     int init_iter_num_ = 1;
     bool b_first_frame_ = true;
     bool imu_need_init_ = true;
+
+    common::V3D init_pos_;
+    double init_yaw_;
     StateCovInit init_state_cov_;
 };
 
@@ -128,6 +134,10 @@ void ImuProcess::SetAccBiasCov(const common::V3D &b_a) { cov_bias_acc_ = b_a; }
 void ImuProcess::SetInitStateCov(const StateCovInit &state_cov) { init_state_cov_ = state_cov; }
 
 void ImuProcess::GetAngVel(common::V3D &ang_vel) { ang_vel = angvel_last_; }
+
+void ImuProcess::SetInitPos(const common::V3D &pos) { init_pos_ = pos; }
+
+void ImuProcess::SetInitYaw(const double &yaw) { init_yaw_ = yaw; }
 
 void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state,
                          int &N) {
@@ -178,7 +188,10 @@ void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_
     double pitch = -atan2(-init_state.grav.vec(0), 
                           sqrt(init_state.grav.vec(1)*init_state.grav.vec(1)+
                                init_state.grav.vec(2)*init_state.grav.vec(2)));
-    Eigen::Quaterniond q_grav = Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+
+    double yaw = init_yaw_ * M_PI / 180.0;
+    Eigen::Quaterniond q_grav = Eigen::AngleAxisd(yaw,   Eigen::Vector3d::UnitZ()) *
+                                Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
                                 Eigen::AngleAxisd(roll,  Eigen::Vector3d::UnitX());
 
     common::V3D euler_angle_pre = 180/M_PI*init_state.rot.matrix().eulerAngles(2, 1, 0);
@@ -191,9 +204,14 @@ void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_
     ROS_ERROR_STREAM("current grav is: " << init_state.grav.vec(0) <<  " " << init_state.grav.vec(1) << " " << init_state.grav.vec(2));
     ROS_ERROR_STREAM("current rota is: " << euler_angle_cur[0] << " " << euler_angle_cur[1] << " " << euler_angle_cur[2]);
     ROS_ERROR_STREAM("=========================================================================");
+
+    init_state.pos[0] = init_pos_[0];
+    init_state.pos[1] = init_pos_[1];
+    init_state.pos[2] = init_pos_[2];
+
     kf_state.change_x(init_state);
     ROS_WARN_STREAM("initial pos is: "  << init_state.pos);
-    ROS_WARN_STREAM("initial rot is: "  << init_state.rot);
+    ROS_WARN_STREAM("initial rot is: "  << euler_angle_cur);
     ROS_WARN_STREAM("initial vel is: "  << init_state.vel);
     ROS_WARN_STREAM("initial gra is: "  << init_state.grav);
     ROS_WARN_STREAM("initial ba is: "   << init_state.ba);
