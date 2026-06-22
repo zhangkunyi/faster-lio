@@ -16,7 +16,7 @@
 
 namespace faster_lio {
 
-constexpr int MAX_INI_COUNT = 20;
+constexpr int DEFAULT_MAX_INI_COUNT = 20;
 
 bool time_list(const PointType &x, const PointType &y) { return (x.curvature < y.curvature); };
 
@@ -53,6 +53,7 @@ class ImuProcess {
     void SetInitPos(const common::V3D &pos);
     void SetInitYaw(const double &yaw);
     void SetInitStateCov(const StateCovInit &state_cov);
+    void SetInitSampleCount(int count);
 
     // std::ofstream fout_imu_;
     Eigen::Matrix<double, 12, 12> Q_;
@@ -81,6 +82,7 @@ class ImuProcess {
     common::V3D acc_s_last_;
     double last_lidar_end_time_ = 0;
     int init_iter_num_ = 1;
+    int init_sample_count_ = DEFAULT_MAX_INI_COUNT;
     bool b_first_frame_ = true;
     bool imu_need_init_ = true;
 
@@ -138,6 +140,8 @@ void ImuProcess::GetAngVel(common::V3D &ang_vel) { ang_vel = angvel_last_; }
 void ImuProcess::SetInitPos(const common::V3D &pos) { init_pos_ = pos; }
 
 void ImuProcess::SetInitYaw(const double &yaw) { init_yaw_ = yaw; }
+
+void ImuProcess::SetInitSampleCount(int count) { init_sample_count_ = std::max(1, count); }
 
 void ImuProcess::IMUInit(const common::MeasureGroup &meas, esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state,
                          int &N) {
@@ -393,7 +397,7 @@ void ImuProcess::Process(const common::MeasureGroup &meas, esekfom::esekf<state_
         last_imu_ = meas.imu_.back();
 
         state_ikfom imu_state = kf_state.get_x();
-        if (init_iter_num_ > MAX_INI_COUNT) {
+        if (init_iter_num_ > init_sample_count_) {
             cov_acc_ *= pow(common::G_m_s2 / mean_acc_.norm(), 2);
             imu_need_init_ = false;
 

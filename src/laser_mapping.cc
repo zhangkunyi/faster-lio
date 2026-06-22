@@ -78,6 +78,7 @@ bool LaserMapping::InitWithoutROS(const std::string &config_yaml) {
 bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     // get params from param server
     int lidar_type, ivox_nearby_type;
+    int imu_init_count;
     double gyr_cov, acc_cov, b_gyr_cov, b_acc_cov;
     double filter_size_surf_min;
     common::V3D lidar_T_wrt_IMU;
@@ -121,6 +122,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     /**********init position and yaw***********/
     std::vector<double> init_pos_;                    // 
     double init_yaw_ = 0.0;
+    nh.param<int>("/init_state/imu_init_count", imu_init_count, DEFAULT_MAX_INI_COUNT);
     nh.param<std::vector<double>>("/init_state/position",  init_pos_,  std::vector<double>());
     nh.param<double>("/init_state/yaw",  init_yaw_,  0.0);
 
@@ -177,6 +179,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
     p_imu_->SetGyrBiasCov(common::V3D(b_gyr_cov, b_gyr_cov, b_gyr_cov));
     p_imu_->SetAccBiasCov(common::V3D(b_acc_cov, b_acc_cov, b_acc_cov));
 
+    p_imu_->SetInitSampleCount(imu_init_count);
     p_imu_->SetInitPos(common::V3D(init_pos_[0], init_pos_[1], init_pos_[2]));
     p_imu_->SetInitYaw(init_yaw_);
     p_imu_->SetInitStateCov(init_state_cov);
@@ -187,6 +190,7 @@ bool LaserMapping::LoadParams(ros::NodeHandle &nh) {
 bool LaserMapping::LoadParamsFromYAML(const std::string &yaml_file) {
     // get params from yaml
     int lidar_type, ivox_nearby_type;
+    int imu_init_count = DEFAULT_MAX_INI_COUNT;
     double gyr_cov, acc_cov, b_gyr_cov, b_acc_cov;
     double filter_size_surf_min;
     common::V3D lidar_T_wrt_IMU;
@@ -227,6 +231,7 @@ bool LaserMapping::LoadParamsFromYAML(const std::string &yaml_file) {
 
         ivox_options_.resolution_ = yaml["ivox_grid_resolution"].as<float>();
         ivox_nearby_type = yaml["ivox_nearby_type"].as<int>();
+        imu_init_count = yaml["init_state"]["imu_init_count"].as<int>(DEFAULT_MAX_INI_COUNT);
     } catch (...) {
         LOG(ERROR) << "Bad conversion";
         return false;
@@ -270,6 +275,7 @@ bool LaserMapping::LoadParamsFromYAML(const std::string &yaml_file) {
     p_imu_->SetAccCov(common::V3D(acc_cov, acc_cov, acc_cov));
     p_imu_->SetGyrBiasCov(common::V3D(b_gyr_cov, b_gyr_cov, b_gyr_cov));
     p_imu_->SetAccBiasCov(common::V3D(b_acc_cov, b_acc_cov, b_acc_cov));
+    p_imu_->SetInitSampleCount(imu_init_count);
 
     run_in_offline_ = true;
     return true;
