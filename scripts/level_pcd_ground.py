@@ -17,7 +17,7 @@ def parse_args():
         )
     )
     parser.add_argument(
-        "pcd",
+        "--pcd",
         nargs="?",
         default=default_input,
         type=Path,
@@ -34,7 +34,25 @@ def parse_args():
         "--ground-percentile",
         type=float,
         default=10.0,
-        help="Use points below this z percentile as ground candidates. Default: 10",
+        help="Lowest z percentile used as the start of the ground search range. Default: 10",
+    )
+    parser.add_argument(
+        "--ground-max-percentile",
+        type=float,
+        default=50.0,
+        help="Highest z percentile used during ground search. Default: 50",
+    )
+    parser.add_argument(
+        "--ground-scan-steps",
+        type=int,
+        default=9,
+        help="Number of z-percentile cutoffs scanned between min and max percentile. Default: 9",
+    )
+    parser.add_argument(
+        "--max-ground-tilt-deg",
+        type=float,
+        default=15.0,
+        help="Discard candidate planes whose tilt exceeds this value. Default: 15",
     )
     parser.add_argument(
         "--sample-limit",
@@ -139,28 +157,43 @@ def parse_pcd_header(path: Path):
     if fields is None or not {"x", "y", "z"}.issubset(fields):
         raise ValueError("PCD must contain x/y/z fields")
 
-    dtype_fields = []
-    for name, size, typ, count in zip(fields, sizes, types, counts):
-        if count != 1:
-            raise ValueError(f"Unsupported field count for {name}: {count}")
+    if not (len(fields) == len(sizes) == len(types) == len(counts)):
+        raise ValueError("PCD header has inconsistent FIELDS/SIZE/TYPE/COUNT lengths")
+
+    def scalar_dtype(name: str, size: int, typ: str):
         if typ == "F" and size == 4:
-            dtype_fields.append((name, "<f4"))
-        elif typ == "F" and size == 8:
-            dtype_fields.append((name, "<f8"))
-        elif typ == "I" and size == 1:
-            dtype_fields.append((name, "i1"))
-        elif typ == "I" and size == 2:
-            dtype_fields.append((name, "<i2"))
-        elif typ == "I" and size == 4:
-            dtype_fields.append((name, "<i4"))
-        elif typ == "U" and size == 1:
-            dtype_fields.append((name, "u1"))
-        elif typ == "U" and size == 2:
-            dtype_fields.append((name, "<u2"))
-        elif typ == "U" and size == 4:
-            dtype_fields.append((name, "<u4"))
+            return "<f4"
+        if typ == "F" and size == 8:
+            return "<f8"
+        if typ == "I" and size == 1:
+            return "i1"
+        if typ == "I" and size == 2:
+            return "<i2"
+        if typ == "I" and size == 4:
+            return "<i4"
+        if typ == "U" and size == 1:
+            return "u1"
+        if typ == "U" and size == 2:
+            return "<u2"
+        if typ == "U" and size == 4:
+            return "<u4"
+        raise ValueError(f"Unsupported field format: {name} {typ}{size}")
+
+    dtype_fields = []
+    used_names = set()
+    for idx, (name, size, typ, count) in enumerate(zip(fields, sizes, types, counts)):
+        dtype_name = name
+        if dtype_name == "_" or dtype_name in used_names:
+            dtype_name = f"__field_{idx}_{name or 'unnamed'}"
+        used_names.add(dtype_name)
+
+        field_dtype = scalar_dtype(name, size, typ)
+        if count == 1:
+            dtype_fields.append((dtype_name, field_dtype))
+        elif count > 1:
+            dtype_fields.append((dtype_name, field_dtype, (count,)))
         else:
-            raise ValueError(f"Unsupported field format: {name} {typ}{size}")
+            raise ValueError(f"Invalid field count for {name}: {count}")
 
     return {
         "header_lines": header_lines,
@@ -243,6 +276,43 @@ def ransac_plane(points: np.ndarray, iterations: int, threshold: float, seed: in
     refined_inliers = points[refined_inlier_mask]
     normal, d = fit_plane_svd(refined_inliers)
     return normal, d, refined_inliers
+
+
+def sample_points(points: np.ndarray, sample_limit: int, seed: int):
+    if len(points) <= sample_limit:
+        return points
+    rng = np.random.default_rng(seed)
+    sample_idx = rng.choice(len(points), size=sample_limit, replace=False)
+    return points[sample_idx]
+
+
+def percentile_scan_values(min_percentile: float, max_percentile: float, steps: int):
+    min_percentile = float(np.clip(min_percentile, 0.0, 100.0))
+    max_percentile = float(np.clip(max_percentile, min_percentile, 100.0))
+    steps = max(int(steps), 1)
+    return np.unique(np.linspace(min_percentile, max_percentile, steps))
+
+
+def compute_ground_slopes(normal: np.ndarray):
+    a = -normal[0] / normal[2]
+    b = -normal[1] / normal[2]
+    tilt_deg = math.degrees(math.acos(np.clip(normal[2], -1.0, 1.0)))
+    slope_x_deg = math.degrees(math.atan(a))
+    slope_y_deg = math.degrees(math.atan(b))
+    return tilt_deg, slope_x_deg, slope_y_deg, a, b
+
+
+def refine_plane_with_full_support(xyz: np.ndarray, normal: np.ndarray, d: float, threshold: float):
+    full_distances = plane_distances(xyz, normal, d)
+    full_inlier_mask = full_distances < threshold
+    full_inliers = xyz[full_inlier_mask]
+    if len(full_inliers) >= 3:
+        normal, d = fit_plane_svd(full_inliers)
+        full_distances = plane_distances(xyz, normal, d)
+        full_inlier_mask = full_distances < threshold
+        full_inliers = xyz[full_inlier_mask]
+    mean_distance = float(full_distances[full_inlier_mask].mean()) if len(full_inliers) else float("inf")
+    return normal, d, full_inliers, mean_distance
 
 
 def normalize_angle_deg(angle_deg: float) -> float:
@@ -336,31 +406,83 @@ def estimate_ground(xyz: np.ndarray, args):
         raise RuntimeError("Not enough valid points in the PCD")
 
     z_values = valid_xyz[:, 2]
-    z_threshold = np.percentile(z_values, args.ground_percentile)
-    candidates = valid_xyz[z_values <= z_threshold]
-    if len(candidates) < 3:
-        raise RuntimeError("Not enough ground candidate points after z filtering")
-
-    if len(candidates) > args.sample_limit:
-        rng = np.random.default_rng(args.seed)
-        sample_idx = rng.choice(len(candidates), size=args.sample_limit, replace=False)
-        candidates = candidates[sample_idx]
-
-    normal, d, inliers = ransac_plane(
-        candidates,
-        iterations=args.iterations,
-        threshold=args.inlier_threshold,
-        seed=args.seed,
+    scan_percentiles = percentile_scan_values(
+        args.ground_percentile,
+        args.ground_max_percentile,
+        args.ground_scan_steps,
     )
+    best = None
+
+    for percentile in scan_percentiles:
+        z_threshold = np.percentile(z_values, percentile)
+        candidates = valid_xyz[z_values <= z_threshold]
+        if len(candidates) < 3:
+            continue
+
+        sampled_candidates = sample_points(candidates, args.sample_limit, args.seed)
+        normal, d, _ = ransac_plane(
+            sampled_candidates,
+            iterations=args.iterations,
+            threshold=args.inlier_threshold,
+            seed=args.seed,
+        )
+        normal, d, inliers, mean_distance = refine_plane_with_full_support(
+            valid_xyz,
+            normal,
+            d,
+            args.inlier_threshold,
+        )
+        tilt_deg, slope_x_deg, slope_y_deg, a, b = compute_ground_slopes(normal)
+        if tilt_deg > args.max_ground_tilt_deg:
+            continue
+
+        result = {
+            "search_percentile_min": float(args.ground_percentile),
+            "search_percentile_max": float(args.ground_max_percentile),
+            "search_steps": int(args.ground_scan_steps),
+            "selected_percentile": float(percentile),
+            "z_threshold": float(z_threshold),
+            "candidate_count": len(sampled_candidates),
+            "candidate_pool_count": len(candidates),
+            "normal": normal,
+            "d": float(d),
+            "inliers": inliers,
+            "global_support_count": len(inliers),
+            "mean_inlier_distance": float(mean_distance),
+            "tilt_deg": float(tilt_deg),
+            "slope_x_deg": float(slope_x_deg),
+            "slope_y_deg": float(slope_y_deg),
+            "plane_a": float(a),
+            "plane_b": float(b),
+        }
+        if best is None:
+            best = result
+            continue
+
+        best_key = (
+            best["global_support_count"],
+            -best["mean_inlier_distance"],
+            -best["tilt_deg"],
+            -best["selected_percentile"],
+        )
+        result_key = (
+            result["global_support_count"],
+            -result["mean_inlier_distance"],
+            -result["tilt_deg"],
+            -result["selected_percentile"],
+        )
+        if result_key > best_key:
+            best = result
+
+    if best is None:
+        raise RuntimeError(
+            "Failed to find a stable ground plane; try increasing --max-ground-tilt-deg "
+            "or widening --ground-max-percentile"
+        )
+
+    normal = best["normal"]
     level_rotation = rotation_matrix_from_vectors(normal, np.array([0.0, 0.0, 1.0]))
-    return {
-        "z_threshold": float(z_threshold),
-        "candidate_count": len(candidates),
-        "normal": normal,
-        "d": float(d),
-        "inliers": inliers,
-        "level_rotation": level_rotation,
-    }
+    return {**best, "level_rotation": level_rotation}
 
 
 def extract_wall_cells(xyz: np.ndarray, grid_size: float, min_z_span: float, min_cell_points: int) -> np.ndarray:
@@ -543,10 +665,18 @@ def main():
     print(f"Output PCD: {output_path}")
     print(f"Total points: {len(raw)}")
     print(
-        f"Ground candidate percentile: {args.ground_percentile:.1f}% "
-        f"(z <= {ground['z_threshold']:.4f} m), candidates used: {ground['candidate_count']}"
+        f"Ground search percentiles: {ground['search_percentile_min']:.1f}% -> "
+        f"{ground['search_percentile_max']:.1f}% in {ground['search_steps']} steps"
     )
-    print(f"Ground inliers: {len(ground['inliers'])}")
+    print(
+        f"Selected ground percentile: {ground['selected_percentile']:.1f}% "
+        f"(z <= {ground['z_threshold']:.4f} m), candidates used: {ground['candidate_count']} "
+        f"from pool {ground['candidate_pool_count']}"
+    )
+    print(
+        f"Ground support on full cloud: {ground['global_support_count']} points "
+        f"(mean inlier distance {ground['mean_inlier_distance']:.4f} m)"
+    )
     print(f"Ground normal before alignment: [{ground['normal'][0]:.6f}, {ground['normal'][1]:.6f}, {ground['normal'][2]:.6f}]")
     print(
         f"Wall yaw after ground leveling: {wall['dominant_yaw_deg']:.3f} deg, "
